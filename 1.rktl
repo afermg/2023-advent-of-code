@@ -28,8 +28,7 @@
 
 (define (load-data path)
   (string-split (file->string path) "\n"))
-(define input (load-data "1.txt"))
-(define singleton (cadr input-as-list))
+(define input (load-data "data/1.txt"))
 
 (define (first-numeric str)
   (findf char-numeric? (string->list str)))
@@ -70,7 +69,7 @@
 (define numbers-str (map number->string numbers))
 (define numbers-names
   (append '("zero" "one" "two" "three" "four" "five" "six" "seven" "eight" "nine") numbers-str))
-(define numbers-names-reverse (map (lambda (x) (reverse-string x)) numbers-names))
+(define numbers-names-reverse (map reverse-string numbers-names))
 
 (define dict-values
   (apply append (make-list 2 (map (lambda (x) (car (string->list x))) numbers-str))))
