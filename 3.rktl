@@ -36,8 +36,11 @@
 
 (require racket/file)
 (require racket/string)
+(require racket/function)
 (require racket/set)
 (require racket/list)
+(require srfi/14)
+(require srfi/1)
 
 (define (load-data path)
   (string-split (file->string path) "\n"))
@@ -48,18 +51,67 @@
 
 (list #\* #\+ #\. #\/ #\space #\0 #\@ #\# #\3 #\$ #\4 #\% #\5 #\& #\6 #\- #\=)
 
-(require srfi/14)
 (define numeric-set (list->char-set (map number->char (range 10))))
 (define universe-set (list->char-set (string->list (string-join input))))
 (define symbol-set (char-set->list (char-set-difference universe-set numeric-set)))
 
-(define regex (regexp (string-append* "" (list "[" (string-append* "" (map string symbol-set)) "]"))))
-
-(define (apply-regex str)
-  (regexp-match-positions* regex str))
-
-(define occur-matrix (map apply-regex input))
-
 (define minus-set (list->char-set (string->list "-")))
 (define (get-prefix symbol-set)
   (list-tail symbol-set (index-of symbol-set #\-)))
+
+(define sorted-symbol-set
+  (append* (list (get-prefix symbol-set) (cdr (get-prefix (reverse symbol-set))))))
+
+(define final-symbol-set (filter (lambda (x) (not (eq? x #\.))) sorted-symbol-set))
+
+(define regex
+  (regexp (string-append* "" (list "[" (string-append* "" (map string final-symbol-set)) "]"))))
+
+(define (apply-regex str)
+  (regexp-match-positions* regex str #:match-select (lambda (x) (caar x))))
+
+(define (apply-regex-num str)
+  (regexp-match-positions* #px"[\\d]+" str))
+(define tool-locations (map apply-regex input))
+(define number-locations (map apply-regex-num input))
+
+(define (pair->list pair)
+  (list (car pair) (cdr pair)))
+
+;; Check if tool and number are contiguous
+(define (contiguous-tool-range? tool number)
+  (ormap (lambda (x) (< (abs (- tool x)) 1)) (pair->list number)))
+
+;; Generate combinations
+;; Obtained from https://stackoverflow.com/questions/67954779/pair-combinations-in-scheme
+;; Needs further studying
+(define (combinations xss)
+  (if (null? xss)
+      '(())
+      (apply append
+             (map (lambda (x) (map (lambda (ys) (cons x ys)) (combinations (cdr xss)))) (car xss)))))
+
+;;  Wrapper to expand tuple
+(define (wrapper-contiguous-tool-range? tool-numrange)
+  (contiguous-tool-range? (car tool-numrange) (cadr tool-numrange)))
+
+;;  Compare tool indices vs number ranges
+(define (compare-two-rows tools-row numbers-row)
+  (filter wrapper-contiguous-tool-range? (combinations (list tools-row numbers-row))))
+
+(define (compare-tool-to-surroundings tool-adjacents)
+  (map (lambda (x)
+         (compare-two-rows (car tool-adjacents) x)
+         (cadr tool-adjacents))))
+
+;; TODO generate nested arrays (138, 3, ...)
+(define all-combinations
+  (for/list ([i (range 1 (sub1 (length input)))])
+    (combinations (list (list-ref tool-locations i)
+                        (for/lists ([j (list (sub1 i) i (add1 i))])
+                                   ((list-ref number-locations j)))))))
+
+;; Then apply to each set compare-tool-to-surroundings -> Generate results for all rows
+;; Remove duplicate coordinates for contiguous arrays
+;; (At last) profit
+(combinations (list (cadr tool-locations) (cadr number-locations)))
