@@ -101,3 +101,5 @@
   (if (null? (cdr lst))
       (cdar lst)
       (+ (cdar lst) (accumulate (increment-n-values (cdr lst) (caar lst) (cdar lst))))))
+
+(define result-2 (accumulate cons-wins))
