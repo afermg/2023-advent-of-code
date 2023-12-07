@@ -91,12 +91,13 @@
 
 ;; (define result-2 (+ () (count (lambda (x) (> x 0)) wins-per-match)))
 
-(define (increment-n-values lst n)
+(define cons-wins (map (lambda (x) (cons x 1)) wins-per-match))
+(define (increment-n-values lst n ncards)
   (append (for/list ([i (range n)] #:when (< i (length lst)))
-            (add1 (list-ref lst i)))
+            (let ([val (list-ref lst i)]) (cons (car val) (+ ncards (cdr val)))))
           (list-tail lst (min n (length lst)))))
 
 (define (accumulate lst)
   (if (null? (cdr lst))
-      (car lst)
-      (+ (car lst) (accumulate (increment-n-values (cdr lst) (car lst))))))
+      (cdar lst)
+      (+ (cdar lst) (accumulate (increment-n-values (cdr lst) (caar lst) (cdar lst))))))
