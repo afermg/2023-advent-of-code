@@ -30,13 +30,15 @@
 (require racket/string)
 (require racket/function)
 (require racket/dict)
+(require racket/bool)
+(require racket/list)
 
 (define (load-data path)
   (string-split (file->string path) "\n"))
 (define input (load-data "data/2.txt"))
 
 (define colours-cube '(("red" . 12) ("green" . 13) ("blue" . 14)))
-(define (max_occurrence game)
+(define (max-occurrence game)
   (map
    (lambda (x)
      (apply max
@@ -44,4 +46,40 @@
                  (regexp-match* (regexp (string-append "([0-9]+) " x)) game #:match-select cadr))))
    (dict-keys colours-cube)))
 
-(define results (map max_occurrence input))
+(define max-occurrences (map max-occurrence input))
+(define max-ncubes (dict-values colours-cube))
+
+(define (combine f l1 l2)
+  (foldr (lambda (a1 a2 acc) (cons (f a1 a2) acc)) '() l1 l2))
+
+;; Returns true where all elements in a row are under the baseline
+(define valid (map (lambda (x) (andmap false? (combine > x max-ncubes))) max-occurrences))
+
+;; Sum all indices where it is valid
+(define result-1 (apply + (map add1 (indexes-of valid true))))
+
+;; --- Part Two ---
+
+;; The Elf says they've stopped producing snow because they aren't getting any water! He isn't sure why the water stopped; however, he can show you how to get to the water source to check it out for yourself. It's just up ahead!
+
+;; As you continue your walk, the Elf poses a second question: in each game you played, what is the fewest number of cubes of each color that could have been in the bag to make the game possible?
+
+;; Again consider the example games from earlier:
+
+;; Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+;; Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
+;; Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
+;; Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
+;; Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green
+
+;; In game 1, the game could have been played with as few as 4 red, 2 green, and 6 blue cubes. If any color had even one fewer cube, the game would have been impossible.
+;; Game 2 could have been played with a minimum of 1 red, 3 green, and 4 blue cubes.
+;; Game 3 must have been played with at least 20 red, 13 green, and 6 blue cubes.
+;; Game 4 required at least 14 red, 3 green, and 15 blue cubes.
+;; Game 5 needed no fewer than 6 red, 3 green, and 2 blue cubes in the bag.
+
+;; The power of a set of cubes is equal to the numbers of red, green, and blue cubes multiplied together. The power of the minimum set of cubes in game 1 is 48. In games 2-5 it was 12, 1560, 630, and 36, respectively. Adding up these five powers produces the sum 2286.
+
+;; For each game, find the minimum set of cubes that must have been present. What is the sum of the power of these sets?
+
+(define result-2 (apply + (map (lambda (x) (apply * x)) max-occurrences)))
