@@ -31,6 +31,7 @@
 
 (require racket/file)
 (require racket/string)
+(require racket/function)
 (require racket/set)
 (require racket/list)
 (require srfi/14)
@@ -44,14 +45,14 @@
 (define (get-prefix symbol-set)
   (list-tail symbol-set (index-of symbol-set #\-)))
 
-(define (apply-regex str)
+(define (apply-regex str regex)
   (regexp-match-positions* regex str #:match-select caar))
 
 (define (cons->list rng)
   (list (car rng) (cdr rng)))
 
 (define (num-range-contiguous? num rng)
-  (ormap (lambda (x) (<= (abs (- num x)) 1)) (cons->list rng)))
+  (ormap (lambda (x) (<= (abs (- num x)) 1)) (range (car rng) (cdr rng))))
 
 (define (filter-relevant-numbers tool-row number-row)
   ;; Select the numbers adjacent to a tool
@@ -81,6 +82,7 @@
   (string->number (substring str (car rng) (cdr rng))))
 
 (define input (load-data "data/3.txt"))
+;; (define input (load-data "data/3_3.txt"))
 ;; (define input (load-data "data/3_2.txt"))
 (define numeric-set (list->char-set (map number->char (range 10))))
 (define universe-set (list->char-set (string->list (string-replace (string-join input) " " ""))))
@@ -94,7 +96,7 @@
            (string-append* "" (list "[" (string-append* "" (map string sorted-symbol-set)) "]"))
            "."
            "")))
-(define tool-coords-matrix (map apply-regex input))
+(define tool-coords-matrix (map (lambda (x) (apply-regex x regex)) input))
 ;; Note that car and (reverse car) for tool-coords-matrix are empty, this simplifies things
 (define number-coords-matrix (map (lambda (x) (regexp-match-positions* #rx"[0-9]+" x)) input))
 (define valid-unsorted (get-valid-unsorted tool-coords-matrix number-coords-matrix))
@@ -106,3 +108,19 @@
     (map (lambda (x) (substring->num row x)) (set->list valid-coords))))
 
 (define result-1 (apply + (append* numbers-by-tools)))
+
+(define q2-tool-coords-matrix (map (lambda (x) (apply-regex x #rx"[*]")) input))
+(define adjacent-by-tool-two-only
+  (for/list ([i (range (length q2-tool-coords-matrix))])
+    (filter (lambda (x) (equal? 2 (length x)))
+            (for/list ([tool-location (list-ref tool-coords-matrix i)])
+              (append* (map (lambda (x)
+                              (map (lambda (rng-set) (substring->num (list-ref input x) rng-set))
+                                   (filter (lambda (y) (num-range-contiguous? tool-location y))
+                                           (list-ref number-coords-matrix x))))
+                            (range (max 0 (- i 1)) (min (length number-coords-matrix) (+ i 2)))))))))
+
+(define result-2
+  (apply +
+         (map (lambda (x) (apply + (map (lambda (y) (* (car y) (cadr y))) x)))
+              adjacent-by-tool-two-only)))
